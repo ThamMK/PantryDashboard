@@ -28,51 +28,59 @@
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbxqHPgKoP0FlK5PHees9P211cZs7PAzqddNIb8SXDA6L9_pGk-4AfUwPgLoust8r-U0fQ/exec";
 
-        async function loadData() {
+        // Global callback function for JSONP
+        function handleInventoryData(data) {
             const container = document.getElementById("inventory-list");
-            try {
-                container.innerHTML = `<p class="text-sm text-slate-400 py-2">Loading inventory from Google Sheets...</p>`;
-                
-                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(API_URL)}`);
-                const json = await response.json();
-                const data = typeof json.contents === 'string' ? JSON.parse(json.contents) : json.contents;
-                
-                container.innerHTML = "";
+            container.innerHTML = "";
 
-                if (!data || data.length === 0) {
-                    container.innerHTML = `<p class="text-sm text-slate-400 py-2">No items found in inventory.</p>`;
-                    return;
-                }
-
-                data.forEach((item, index) => {
-                    const itemName = item.Item || item.item || "Unknown Item";
-                    const itemCat = item.Category || item.category || "General";
-                    const itemQty = item.Quantity || item.quantity || 1;
-                    const itemStatus = item.Status || item.status || "Available";
-                    const rowIndex = item.row || (index + 2); // Fallback to row calculation if item.row is missing
-
-                    const rowDiv = document.createElement("div");
-                    rowDiv.className = "py-3 flex items-center justify-between";
-                    rowDiv.innerHTML = `
-                        <div>
-                            <span class="font-medium text-slate-800">${itemName}</span>
-                            <span class="ml-2 text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">${itemCat}</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-sm text-slate-500">Qty: ${itemQty}</span>
-                            <select onchange="updateStatus(${rowIndex}, this.value)" class="text-xs border rounded-lg p-1 bg-slate-50">
-                                <option value="Available" ${itemStatus === 'Available' ? 'selected' : ''}>Available</option>
-                                <option value="Low" ${itemStatus === 'Low' ? 'selected' : ''}>Low</option>
-                                <option value="Out" ${itemStatus === 'Out' ? 'selected' : ''}>Out</option>
-                            </select>
-                        </div>
-                    `;
-                    container.appendChild(rowDiv);
-                });
-            } catch (err) {
-                console.error("Load Data Error:", err);
-                container.innerHTML = `<p class="text-sm text-red-500 py-2">Failed to load inventory. Please check browser console.</p>`;
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-400 py-2">No items found in inventory.</p>`;
+                return;
             }
+
+            data.forEach((item, index) => {
+                const itemName = item.Item || item.item || "Unknown Item";
+                const itemCat = item.Category || item.category || "General";
+                const itemQty = item.Quantity || item.quantity || 1;
+                const itemStatus = item.Status || item.status || "Available";
+                const rowIndex = item.row || (index + 2);
+
+                const rowDiv = document.createElement("div");
+                rowDiv.className = "py-3 flex items-center justify-between";
+                rowDiv.innerHTML = `
+                    <div>
+                        <span class="font-medium text-slate-800">${itemName}</span>
+                        <span class="ml-2 text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">${itemCat}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-slate-500">Qty: ${itemQty}</span>
+                        <select onchange="updateStatus(${rowIndex}, this.value)" class="text-xs border rounded-lg p-1 bg-slate-50">
+                            <option value="Available" ${itemStatus === 'Available' ? 'selected' : ''}>Available</option>
+                            <option value="Low" ${itemStatus === 'Low' ? 'selected' : ''}>Low</option>
+                            <option value="Out" ${itemStatus === 'Out' ? 'selected' : ''}>Out</option>
+                        </select>
+                    </div>
+                `;
+                container.appendChild(rowDiv);
+            });
+        }
+
+        function loadData() {
+            const container = document.getElementById("inventory-list");
+            container.innerHTML = `<p class="text-sm text-slate-400 py-2">Loading inventory from Google Sheets...</p>`;
+
+            // Remove any existing script tag to force a fresh load
+            const existingScript = document.getElementById("jsonp-script");
+            if (existingScript) existingScript.remove();
+
+            // Inject script tag for JSONP (bypasses CORS entirely)
+            const script = document.createElement("script");
+            script.id = "jsonp-script";
+            script.src = `${API_URL}?callback=handleInventoryData`;
+            script.onerror = () => {
+                container.innerHTML = `<p class="text-sm text-red-500 py-2">Failed to load inventory via JSONP.</p>`;
+            };
+            document.body.appendChild(script);
         }
 
         async function updateStatus(row, status) {
@@ -88,6 +96,7 @@
             }
         }
 
+        // Initial load
         loadData();
     </script>
 </body>
