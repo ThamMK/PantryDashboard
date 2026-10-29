@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantry & Meal Planner Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto space-y-6">
+        <header class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">Pantry Inventory & Meal Planner</h1>
+                <p class="text-sm text-slate-500">Synced live with your Google Sheet database</p>
+            </div>
+            <button onclick="loadData()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition">Refresh Data</button>
+        </header>
+
+        <!-- Inventory Section -->
+        <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h2 class="text-lg font-semibold text-slate-900 mb-4">Current Inventory</h2>
+            <div id="inventory-list" class="divide-y divide-slate-100">
+                <p class="text-sm text-slate-400 py-2">Loading inventory from Google Sheets...</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbx9RWKwRqzE6VPVnr1Go2LYxh2dDSAOcJoYOc707TH6dNORVkb-W7sy-wDLMGrO7Pxp/exec";
+
+        async function loadData() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                const container = document.getElementById("inventory-list");
+                container.innerHTML = "";
+
+                data.forEach(item => {
+                    const rowDiv = document.createElement("div");
+                    rowDiv.className = "py-3 flex items-center justify-between";
+                    rowDiv.innerHTML = `
+                        <div>
+                            <span class="font-medium text-slate-800">${item.Item || item.item}</span>
+                            <span class="ml-2 text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">${item.Category || item.category || 'General'}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm text-slate-500">Qty: ${item.Quantity || item.quantity || 1}</span>
+                            <select onchange="updateStatus(${item.row}, this.value)" class="text-xs border rounded-lg p-1 bg-slate-50">
+                                <option value="Available" ${(item.Status || item.status) === 'Available' ? 'selected' : ''}>Available</option>
+                                <option value="Low" ${(item.Status || item.status) === 'Low' ? 'selected' : ''}>Low</option>
+                                <option value="Out" ${(item.Status || item.status) === 'Out' ? 'selected' : ''}>Out</option>
+                            </select>
+                        </div>
+                    `;
+                    container.appendChild(rowDiv);
+                });
+            } catch (err) {
+                console.error(err);
+                document.getElementById("inventory-list").innerHTML = `<p class="text-sm text-red-500">Failed to load inventory.</p>`;
+            }
+        }
+
+        async function updateStatus(row, status) {
+            await fetch(API_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "updateStatus", row: row, status: status })
+            });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
